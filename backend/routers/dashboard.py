@@ -1,7 +1,7 @@
 """Dashboard API endpoints"""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
+from sqlalchemy import func, desc, case
 from typing import List
 from datetime import datetime, timedelta
 
@@ -27,8 +27,10 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     avg_score = db.query(func.avg(Stock.overall_score)).scalar() or 0
 
     # Best/worst performers among tracked stocks
-    best = db.query(Stock).filter(Stock.status.in_([StockStatus.WATCHING, StockStatus.HOLDING]))             .order_by(desc(Stock.overall_score)).first()
-    worst = db.query(Stock).filter(Stock.status.in_([StockStatus.WATCHING, StockStatus.HOLDING]))              .order_by(Stock.overall_score).first()
+    best = db.query(Stock).filter(Stock.status.in_([StockStatus.WATCHING, StockStatus.HOLDING]))\
+             .order_by(desc(Stock.overall_score)).first()
+    worst = db.query(Stock).filter(Stock.status.in_([StockStatus.WATCHING, StockStatus.HOLDING]))\
+              .order_by(Stock.overall_score).first()
 
     return DashboardStats(
         total_stocks=total,
@@ -81,7 +83,8 @@ def get_weekly_picks(db: Session = Depends(get_db)):
 @router.get("/recent-alerts")
 def get_recent_alerts(limit: int = 10, db: Session = Depends(get_db)):
     """Get recent alerts"""
-    alerts = db.query(Alert).filter(Alert.is_active == True)               .order_by(desc(Alert.created_at)).limit(limit).all()
+    alerts = db.query(Alert).filter(Alert.is_active == True)\
+               .order_by(desc(Alert.created_at)).limit(limit).all()
 
     return [
         {
@@ -104,14 +107,20 @@ def get_sentiment_trend(days: int = 7, db: Session = Depends(get_db)):
     """Get sentiment trend over last N days"""
     from_date = datetime.now() - timedelta(days=days)
 
+    # SQLAlchemy 2.0 case() syntax
+    positive_case = case((NewsArticle.sentiment_score >= 0.05, 1), else_=0)
+    negative_case = case((NewsArticle.sentiment_score <= -0.05, 1), else_=0)
+
     # Group by date
     results = db.query(
         func.date(NewsArticle.created_at).label("date"),
         func.avg(NewsArticle.sentiment_score).label("avg_sentiment"),
         func.count(NewsArticle.id).label("count"),
-        func.sum(func.case((NewsArticle.sentiment_score >= 0.05, 1), else_=0)).label("positive"),
-        func.sum(func.case((NewsArticle.sentiment_score <= -0.05, 1), else_=0)).label("negative"),
-    ).filter(NewsArticle.created_at >= from_date)     .group_by(func.date(NewsArticle.created_at))     .order_by("date").all()
+        func.sum(positive_case).label("positive"),
+        func.sum(negative_case).label("negative"),
+    ).filter(NewsArticle.created_at >= from_date)\
+     .group_by(func.date(NewsArticle.created_at))\
+     .order_by("date").all()
 
     return [
         {

@@ -26,7 +26,7 @@ def run_weekly_screening():
         for result in results:
             symbol = result["symbol"]
 
-            # Find or create stock record
+            # Use get_or_create pattern to avoid duplicate key errors
             stock = db.query(Stock).filter(Stock.symbol == symbol).first()
 
             if not stock:
@@ -42,6 +42,11 @@ def run_weekly_screening():
                 db.add(stock)
                 db.commit()
                 db.refresh(stock)
+            else:
+                # Update existing stock
+                stock.name = result.get("name") or stock.name
+                stock.sector = result.get("sector") or stock.sector
+                stock.current_price = result.get("current_price") or stock.current_price
 
             # Update stock scores
             stock.fundamental_score = result.get("fundamental_score", 0)
@@ -102,5 +107,9 @@ def run_weekly_screening():
         db.commit()
         print(f"[{datetime.now()}] Weekly screening completed. {len(results)} stocks screened.")
 
+    except Exception as e:
+        db.rollback()
+        print(f"[{datetime.now()}] Weekly screening error: {e}")
+        raise
     finally:
         db.close()

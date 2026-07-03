@@ -13,6 +13,13 @@ class StockDataService:
         self.cache = {}
 
     def get_stock_info(self, symbol: str) -> Dict:
+        """Fetch comprehensive stock info from Yahoo Finance with rate limit handling"""
+        # Ensure symbol has .NS suffix for NSE stocks
+        if not symbol.endswith(".NS") and not symbol.endswith(".BO"):
+            symbol = symbol + ".NS"
+
+        import time
+        time.sleep(0.5)  # Rate limiting: 0.5s delay between requests
         """Fetch comprehensive stock info from Yahoo Finance"""
         try:
             ticker = yf.Ticker(symbol)
@@ -43,6 +50,13 @@ class StockDataService:
             return {"symbol": symbol, "name": symbol}
 
     def get_historical_data(self, symbol: str, period: str = "1y") -> pd.DataFrame:
+        """Fetch historical OHLCV data with rate limit handling"""
+        # Ensure symbol has .NS suffix for NSE stocks
+        if not symbol.endswith(".NS") and not symbol.endswith(".BO"):
+            symbol = symbol + ".NS"
+
+        import time
+        time.sleep(0.5)  # Rate limiting
         """Fetch historical OHLCV data"""
         try:
             ticker = yf.Ticker(symbol)
@@ -55,6 +69,13 @@ class StockDataService:
             return pd.DataFrame()
 
     def get_current_price(self, symbol: str) -> Optional[float]:
+        """Get current market price with rate limit handling"""
+        # Ensure symbol has .NS suffix for NSE stocks
+        if not symbol.endswith(".NS") and not symbol.endswith(".BO"):
+            symbol = symbol + ".NS"
+
+        import time
+        time.sleep(0.5)  # Rate limiting
         """Get current market price"""
         try:
             ticker = yf.Ticker(symbol)
