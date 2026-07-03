@@ -63,8 +63,8 @@ services:
         condition: service_started
     networks:
       - stock_net
-    command: >
-      sh -c "python -c 'import socket, time;              host="postgres"; port=5432;              [(__import__("socket").create_connection((host,port),1).close() or print("DB ready")) if False else time.sleep(1) for _ in range(30)];              print("DB timeout - starting anyway")' 2>/dev/null;              python -c 'from database import init_db; init_db()' &&              uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+    working_dir: /app
+    command: python wait_for_db.py uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:
     build: ./frontend
@@ -105,8 +105,8 @@ services:
         condition: service_started
     networks:
       - stock_net
-    command: >
-      sh -c "python -c 'import socket, time;              host="postgres"; port=5432;              [(__import__("socket").create_connection((host,port),1).close() or print("DB ready")) if False else time.sleep(1) for _ in range(30)];              print("DB timeout - starting anyway")' 2>/dev/null;              python -c 'from database import init_db; init_db()' &&              python tasks/scheduler.py"
+    working_dir: /app
+    command: python wait_for_db.py python tasks/scheduler.py
 
 volumes:
   postgres_data:
