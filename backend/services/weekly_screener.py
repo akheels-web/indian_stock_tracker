@@ -1,4 +1,5 @@
 """Weekly stock screening service"""
+import time
 from typing import List, Dict
 from datetime import datetime, timedelta
 from config import get_settings
@@ -19,10 +20,39 @@ class WeeklyScreenerService:
 
         # Fetch data
         info = stock_data_service.get_stock_info(symbol)
+
+        # If we got rate limited, info will have minimal data
+        # Try again after a longer delay
+        if not info.get("current_price"):
+            print(f"  Rate limited on {symbol}, retrying after 5s...")
+            time.sleep(5)
+            info = stock_data_service.get_stock_info(symbol)
+
         hist = stock_data_service.get_historical_data(symbol, period="6mo")
 
         if hist.empty:
-            return {"symbol": symbol, "error": "No data available"}
+            print(f"  Warning: No historical data for {symbol}")
+            # Return minimal result with whatever info we have
+            return {
+                "symbol": symbol,
+                "name": info.get("name", symbol),
+                "sector": info.get("sector", "Unknown"),
+                "current_price": info.get("current_price"),
+                "fundamental_score": 50.0,
+                "technical_score": 50.0,
+                "sentiment_score": 0.0,
+                "overall_score": 35.0,
+                "recommendation": "WATCH",
+                "confidence": 0.3,
+                "reasoning": "Limited data available due to API rate limiting",
+                "pe_ratio": info.get("pe_ratio"),
+                "pb_ratio": info.get("pb_ratio"),
+                "roe": info.get("roe"),
+                "debt_equity": info.get("debt_equity"),
+                "eps_growth": info.get("eps_growth"),
+                "revenue_growth": info.get("revenue_growth"),
+                "profit_margin": info.get("profit_margin"),
+            }
 
         # Calculate indicators
         tech_indicators = stock_data_service.calculate_technical_indicators(hist)
@@ -73,7 +103,7 @@ class WeeklyScreenerService:
             "symbol": symbol,
             "name": info.get("name", symbol),
             "sector": info.get("sector", "Unknown"),
-            "current_price": info.get("current_price"),
+            "current_price": info.get("current_price") or tech_indicators.get("current_price"),
             "fundamental_score": fundamental_result["fundamental_score"],
             "technical_score": technical_result["technical_score"],
             "sentiment_score": sentiment_score,

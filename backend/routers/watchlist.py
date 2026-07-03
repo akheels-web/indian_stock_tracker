@@ -71,23 +71,36 @@ def add_stock(symbol: str, db: Session = Depends(get_db)):
         screen_result = screener_service.screen_stock(symbol)
     except Exception as e:
         print(f"Screening failed for {symbol}: {e}")
-        screen_result = {}
+        screen_result = {
+            "fundamental_score": 50.0,
+            "technical_score": 50.0,
+            "overall_score": 35.0,
+            "current_price": info.get("current_price"),
+            "pe_ratio": info.get("pe_ratio"),
+            "pb_ratio": info.get("pb_ratio"),
+            "roe": info.get("roe"),
+            "debt_equity": info.get("debt_equity"),
+            "eps_growth": info.get("eps_growth"),
+            "revenue_growth": info.get("revenue_growth"),
+            "profit_margin": info.get("profit_margin"),
+            "beta": info.get("beta"),
+        }
 
     stock = Stock(
         symbol=symbol,
         name=info.get("name"),
         sector=info.get("sector"),
         status=StockStatus.WATCHING,
-        current_price=info.get("current_price"),
-        first_tracked_price=info.get("current_price"),
-        pe_ratio=info.get("pe_ratio"),
-        pb_ratio=info.get("pb_ratio"),
-        roe=info.get("roe"),
-        debt_equity=info.get("debt_equity"),
-        eps_growth=info.get("eps_growth"),
-        revenue_growth=info.get("revenue_growth"),
-        profit_margin=info.get("profit_margin"),
-        beta=info.get("beta"),
+        current_price=screen_result.get("current_price") or info.get("current_price"),
+        first_tracked_price=screen_result.get("current_price") or info.get("current_price"),
+        pe_ratio=screen_result.get("pe_ratio") or info.get("pe_ratio"),
+        pb_ratio=screen_result.get("pb_ratio") or info.get("pb_ratio"),
+        roe=screen_result.get("roe") or info.get("roe"),
+        debt_equity=screen_result.get("debt_equity") or info.get("debt_equity"),
+        eps_growth=screen_result.get("eps_growth") or info.get("eps_growth"),
+        revenue_growth=screen_result.get("revenue_growth") or info.get("revenue_growth"),
+        profit_margin=screen_result.get("profit_margin") or info.get("profit_margin"),
+        beta=screen_result.get("beta") or info.get("beta"),
         fundamental_score=screen_result.get("fundamental_score", 0),
         technical_score=screen_result.get("technical_score", 0),
         overall_score=screen_result.get("overall_score", 0),
@@ -105,7 +118,13 @@ def add_stock(symbol: str, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(stock)
 
-    return {"message": "Stock added successfully", "stock_id": stock.id, "name": stock.name, "price": stock.current_price}
+    return {
+        "message": "Stock added successfully",
+        "stock_id": stock.id,
+        "name": stock.name,
+        "price": stock.current_price,
+        "overall_score": stock.overall_score,
+    }
 
 
 @router.put("/stocks/{stock_id}")

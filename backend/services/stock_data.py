@@ -1,26 +1,44 @@
-"""Stock data fetching service using yfinance"""
+"""Stock data fetching service using yfinance with rate limiting"""
 import yfinance as yf
 import pandas as pd
 from typing import Optional, Dict, List
 from datetime import datetime, timedelta
+from functools import lru_cache
+import time
 from config import get_settings
 
 settings = get_settings()
+
+# Global rate limiter state
+_last_request_time = 0
+_min_delay = 2.0  # 2 seconds between requests to avoid 429
 
 
 class StockDataService:
     def __init__(self):
         self.cache = {}
+        self._last_request = 0
 
-    def get_stock_info(self, symbol: str) -> Dict:
-        """Fetch comprehensive stock info from Yahoo Finance with rate limit handling"""
-        # Ensure symbol has .NS suffix for NSE stocks
+    def _rate_limit(self):
+        """Enforce minimum delay between Yahoo Finance requests"""
+        elapsed = time.time() - self._last_request
+        if elapsed < _min_delay:
+            time.sleep(_min_delay - elapsed)
+        self._last_request = time.time()
+
+    def _ensure_suffix(self, symbol: str) -> str:
+        """Ensure symbol has exchange suffix"""
+        symbol = symbol.upper().strip()
         if not symbol.endswith(".NS") and not symbol.endswith(".BO"):
             symbol = symbol + ".NS"
+        return symbol
 
-        import time
-        time.sleep(0.5)  # Rate limiting: 0.5s delay between requests
-        """Fetch comprehensive stock info from Yahoo Finance"""
+    def get_stock_info(self, symbol: str) -> Dict:
+        """Fetch comprehensive stock info from Yahoo Finance with rate limiting"""
+        symbol = self._ensure_suffix(symbol)
+
+        self._rate_limit()
+
         try:
             ticker = yf.Ticker(symbol)
             info = ticker.info
@@ -47,17 +65,20 @@ class StockDataService:
             }
         except Exception as e:
             print(f"Error fetching info for {symbol}: {e}")
-            return {"symbol": symbol, "name": symbol}
+            # Return minimal data so the app doesn't crash
+            return {
+                "symbol": symbol,
+                "name": symbol.replace(".NS", "").replace(".BO", ""),
+                "sector": "Unknown",
+                "current_price": None,
+            }
 
     def get_historical_data(self, symbol: str, period: str = "1y") -> pd.DataFrame:
-        """Fetch historical OHLCV data with rate limit handling"""
-        # Ensure symbol has .NS suffix for NSE stocks
-        if not symbol.endswith(".NS") and not symbol.endswith(".BO"):
-            symbol = symbol + ".NS"
+        """Fetch historical OHLCV data with rate limiting"""
+        symbol = self._ensure_suffix(symbol)
 
-        import time
-        time.sleep(0.5)  # Rate limiting
-        """Fetch historical OHLCV data"""
+        self._rate_limit()
+
         try:
             ticker = yf.Ticker(symbol)
             df = ticker.history(period=period)
@@ -69,14 +90,11 @@ class StockDataService:
             return pd.DataFrame()
 
     def get_current_price(self, symbol: str) -> Optional[float]:
-        """Get current market price with rate limit handling"""
-        # Ensure symbol has .NS suffix for NSE stocks
-        if not symbol.endswith(".NS") and not symbol.endswith(".BO"):
-            symbol = symbol + ".NS"
+        """Get current market price with rate limiting"""
+        symbol = self._ensure_suffix(symbol)
 
-        import time
-        time.sleep(0.5)  # Rate limiting
-        """Get current market price"""
+        self._rate_limit()
+
         try:
             ticker = yf.Ticker(symbol)
             return ticker.info.get("currentPrice") or ticker.info.get("regularMarketPrice")
@@ -85,7 +103,7 @@ class StockDataService:
             return None
 
     def batch_get_prices(self, symbols: List[str]) -> Dict[str, float]:
-        """Get prices for multiple stocks efficiently"""
+        """Get prices for multiple stocks with rate limiting"""
         prices = {}
         for symbol in symbols:
             price = self.get_current_price(symbol)
