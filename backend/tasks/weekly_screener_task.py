@@ -1,4 +1,8 @@
 """Weekly stock screening task"""
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from datetime import datetime, timedelta
 from database import SessionLocal
 from models import Stock, WeeklyReport, StockStatus, PriceHistory
@@ -65,7 +69,7 @@ def run_weekly_screening():
                 stock_id=stock.id,
                 week_start=week_start,
                 week_end=week_end,
-                week_open=result.get("current_price"),  # Simplified
+                week_open=result.get("current_price"),
                 week_close=result.get("current_price"),
                 weekly_fundamental_score=result.get("fundamental_score"),
                 weekly_technical_score=result.get("technical_score"),

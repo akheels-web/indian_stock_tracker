@@ -1,4 +1,8 @@
 """Daily news scanning and sentiment update task"""
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import asyncio
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
@@ -106,7 +110,7 @@ async def check_and_create_alerts(db: Session, stock, articles):
         "current_price": stock.current_price,
         "first_tracked_price": stock.first_tracked_price,
         "sentiment_score": stock.sentiment_score,
-        "previous_sentiment": stock.sentiment_score,  # Would need historical tracking
+        "previous_sentiment": stock.sentiment_score,
         "pe_ratio": stock.pe_ratio,
         "debt_equity": stock.debt_equity,
         "roe": stock.roe,
@@ -157,19 +161,13 @@ async def send_telegram_alert(stock, alerts):
     try:
         import httpx
 
-        message = f"🚨 *ALERT: {stock.symbol}*
-
-"
+        message = f"🚨 *ALERT: {stock.symbol}*\n\n"
         for alert in alerts:
             emoji = "🔴" if alert["severity"].value == "critical" else "🟠"
-            message += f"{emoji} *{alert['title']}*
-"
-            message += f"{alert['message']}
+            message += f"{emoji} *{alert['title']}*\n"
+            message += f"{alert['message']}\n\n"
 
-"
-
-        message += f"Current Price: ₹{stock.current_price}
-"
+        message += f"Current Price: ₹{stock.current_price}\n"
         message += f"Sentiment: {stock.sentiment_score:.2f}"
 
         url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage"

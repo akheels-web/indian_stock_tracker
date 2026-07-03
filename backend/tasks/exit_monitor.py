@@ -1,4 +1,8 @@
 """Real-time exit monitoring task"""
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from datetime import datetime
 from database import SessionLocal
 from models import Stock, Alert, StockStatus, AlertType, AlertSeverity

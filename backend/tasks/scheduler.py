@@ -1,4 +1,10 @@
 """APScheduler task runner"""
+import sys
+import os
+
+# Add /app to Python path so imports work when running from tasks/ directory
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import asyncio
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
