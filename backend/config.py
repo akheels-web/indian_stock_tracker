@@ -72,7 +72,7 @@ class Settings(BaseSettings):
 
     def get_database_url(self) -> str:
         """Build DATABASE_URL from separate components, properly URL-encoding the password"""
-        if self.DATABASE_URL:
+        if self.DATABASE_URL and "postgresql://" in self.DATABASE_URL:
             return self.DATABASE_URL
 
         # URL-encode password to handle special characters like @, :, /, etc.
