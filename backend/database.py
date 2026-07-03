@@ -5,9 +5,10 @@ from sqlalchemy.orm import sessionmaker
 from config import get_settings
 
 settings = get_settings()
+DATABASE_URL = settings.get_database_url()
 
 engine = create_engine(
-    settings.DATABASE_URL,
+    DATABASE_URL,
     pool_pre_ping=True,
     pool_recycle=300,
     echo=False

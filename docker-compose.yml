@@ -15,6 +15,12 @@ services:
       - "5432:5432"
     networks:
       - stock_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-stockuser} -d ${DB_NAME:-stocktracker}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   redis:
     image: redis:7-alpine
@@ -30,13 +36,17 @@ services:
     container_name: stock_tracker_api
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgresql://${DB_USER:-stockuser}:${DB_PASSWORD:-stockpass}@postgres:5432/${DB_NAME:-stocktracker}
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-stockuser}
+      - DB_PASSWORD=${DB_PASSWORD:-stockpass}
+      - DB_NAME=${DB_NAME:-stocktracker}
       - REDIS_URL=redis://redis:6379
-      - NEWS_API_KEY=${NEWS_API_KEY}
-      - GROQ_API_KEY=${GROQ_API_KEY}
-      - ALPHA_VANTAGE_KEY=${ALPHA_VANTAGE_KEY}
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - NEWS_API_KEY=${NEWS_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - ALPHA_VANTAGE_KEY=${ALPHA_VANTAGE_KEY:-}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
       - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-me}
       - ENVIRONMENT=${ENVIRONMENT:-production}
     volumes:
@@ -45,8 +55,10 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - stock_net
     command: >
@@ -69,19 +81,25 @@ services:
     container_name: stock_tracker_scheduler
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgresql://${DB_USER:-stockuser}:${DB_PASSWORD:-stockpass}@postgres:5432/${DB_NAME:-stocktracker}
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-stockuser}
+      - DB_PASSWORD=${DB_PASSWORD:-stockpass}
+      - DB_NAME=${DB_NAME:-stocktracker}
       - REDIS_URL=redis://redis:6379
-      - NEWS_API_KEY=${NEWS_API_KEY}
-      - GROQ_API_KEY=${GROQ_API_KEY}
-      - ALPHA_VANTAGE_KEY=${ALPHA_VANTAGE_KEY}
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - NEWS_API_KEY=${NEWS_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - ALPHA_VANTAGE_KEY=${ALPHA_VANTAGE_KEY:-}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
     volumes:
       - ./backend:/app
       - /app/__pycache__
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - stock_net
     command: >

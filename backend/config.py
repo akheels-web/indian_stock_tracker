@@ -1,12 +1,21 @@
 """Configuration management for Indian Stock Tracker"""
 import os
+from urllib.parse import quote_plus
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
 
 class Settings(BaseSettings):
-    # Database
-    DATABASE_URL: str = "postgresql://stockuser:stockpass@localhost:5432/stocktracker"
+    # Database - use separate vars to avoid URL encoding issues with special chars
+    DB_HOST: str = "localhost"
+    DB_PORT: int = 5432
+    DB_USER: str = "stockuser"
+    DB_PASSWORD: str = "stockpass"
+    DB_NAME: str = "stocktracker"
+
+    # Legacy DATABASE_URL support (URL-encoded)
+    DATABASE_URL: str = ""
+
     REDIS_URL: str = "redis://localhost:6379"
 
     # API Keys
@@ -29,9 +38,9 @@ class Settings(BaseSettings):
     MAX_PE: float = 30.0
 
     # Alert Thresholds
-    SENTIMENT_EXIT_THRESHOLD: float = -0.6  # Exit if sentiment drops below
-    STOP_LOSS_PCT: float = 8.0  # 8% stop loss
-    TARGET_GAIN_PCT: float = 20.0  # 20% target
+    SENTIMENT_EXIT_THRESHOLD: float = -0.6
+    STOP_LOSS_PCT: float = 8.0
+    TARGET_GAIN_PCT: float = 20.0
 
     # News Sources for India
     NEWS_SOURCES: list = [
@@ -59,6 +68,16 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        env_file_encoding = "utf-8"
+
+    def get_database_url(self) -> str:
+        """Build DATABASE_URL from separate components, properly URL-encoding the password"""
+        if self.DATABASE_URL:
+            return self.DATABASE_URL
+
+        # URL-encode password to handle special characters like @, :, /, etc.
+        encoded_password = quote_plus(self.DB_PASSWORD)
+        return f"postgresql://{self.DB_USER}:{encoded_password}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
 
 @lru_cache()
